@@ -1,0 +1,475 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "5477cfdb-80fd-43af-ad7e-03f76d822c15",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "## Retirement Model\n",
+    "The steps for model are:\n",
+    "\n",
+    "- [Setup](**Setup**): We will setup the environment.\n",
+    "- [Inputs](**Inputs**): Input data needed for calculation of retirement model.\n",
+    "- [Salary](**Salary**): calculates net salary annually and include promotions.\n",
+    "- [Wealth](**Wealth**): Calculates the wealth at the end of retirement.\n",
+    "- [Setu](**Setu**): We will setup the environment."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d61abd72-de39-4435-840b-78587fb218fe",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "### Setup"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 73,
+   "id": "517bab2c-90ad-491f-8eae-4e6cba60c9c6",
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Requirement already satisfied: dataclasses in c:\\users\\harris shah\\anaconda3\\lib\\site-packages (0.6)\n",
+      "Note: you may need to restart the kernel to use updated packages.\n"
+     ]
+    }
+   ],
+   "source": [
+    "pip install dataclasses"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "id": "0e141931-0b6d-430b-b35e-2c29f16d6dab",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "from dataclasses import dataclass"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2761c828-0874-462c-ab90-9d0eafb23fbc",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "### Inputs"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 75,
+   "id": "80fc0bca-eeb1-4e62-a5cd-5dfb454e29a8",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "ModelInputs(starting_salary=60000, savings_rate=0.25, interest_rate=0.05, promos_raise=0.15, promos_every_n_year=5, desired_cash=1500000, inflation_rate_yearly=0.02, yearly_spendings=0.0, one_of_withdrawal=1000)"
+      ]
+     },
+     "execution_count": 75,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "\n",
+    "@dataclass\n",
+    "class ModelInputs:\n",
+    "    starting_salary: int = 60000\n",
+    "    savings_rate: float = 0.25\n",
+    "    interest_rate: float = 0.05\n",
+    "    promos_raise: float = 0.15\n",
+    "    promos_every_n_year: int = 5\n",
+    "    desired_cash: int = 1500000\n",
+    "    inflation_rate_yearly: float = 0.02\n",
+    "    yearly_spendings: float = 0.0\n",
+    "    one_of_withdrawal: int = 1000\n",
+    "\n",
+    "\n",
+    "model_data = ModelInputs()\n",
+    "data = model_data\n",
+    "data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c75522ea-adf9-4c89-a0ba-9bb177aee775",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "### Salary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 92,
+   "id": "beb012e7-c516-4b0b-966b-d32887c2db4d",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "60000.0"
+      ]
+     },
+     "execution_count": 92,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# lets build a function for it \n",
+    "\n",
+    "year = 0\n",
+    "starting_wealth = 0\n",
+    "\n",
+    "def net_salary_at_year(data, year):\n",
+    "\n",
+    "# Add promotions effect to salary\n",
+    "    num_promos = int(year/data.promos_every_n_year)\n",
+    "    cost_of_living = data.starting_salary*(1+data.inflation_rate_yearly)**year\n",
+    "    promotion_factor = (1+data.promos_raise)**num_promos\n",
+    "    salary_t = cost_of_living*promotion_factor\n",
+    "    \n",
+    "# Subtract Annual spendings    \n",
+    "    net_salary_t = salary_t * (1-data.yearly_spendings)\n",
+    "    return net_salary_t\n",
+    "\n",
+    "net_salary_at_year(data, year)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e3340f4c-7150-47b1-b48f-dcae1162e44c",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "### Wealth\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 93,
+   "id": "99f242d2-7961-44af-9d50-c99ece6e458d",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "15000.0"
+      ]
+     },
+     "execution_count": 93,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# create a function for W(t-1) part of equation\n",
+    "\n",
+    "def cash_saved_during_year(data, year):\n",
+    "    salary = net_salary_at_year(data, year)\n",
+    "    cash_saved = salary * data.savings_rate\n",
+    "    return cash_saved\n",
+    "\n",
+    "cash_saved_during_year(data, year)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 78,
+   "id": "84cad938-9fcd-4cab-b11e-02c41fc8dd39",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "15000.0"
+      ]
+     },
+     "execution_count": 78,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# create function for (1+return)+(salary at time * savings rate)\n",
+    "prior_wealth = 0\n",
+    "def wealth_at_year(data, year, prior_wealth):\n",
+    "    \n",
+    "    cash_saved = cash_saved_during_year(data, year)\n",
+    "    wealth = prior_wealth*(1+data.interest_rate) + cash_saved\n",
+    "    return wealth\n",
+    "wealth_at_year(data, year, prior_wealth)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 79,
+   "id": "10f23177-7faf-4dae-b15c-4fd9637659b0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      " During year 1, Total wealth is $15,300.\n",
+      " During year 2, Total wealth is $31,671.\n",
+      " During year 3, Total wealth is $49,173.\n",
+      " During year 4, Total wealth is $67,868.\n",
+      " During year 5, Total wealth is $90,307.\n",
+      " During year 6, Total wealth is $114,248.\n",
+      " During year 7, Total wealth is $139,775.\n",
+      " During year 8, Total wealth is $166,975.\n",
+      " During year 9, Total wealth is $195,939.\n",
+      " During year 10, Total wealth is $229,918.\n",
+      " During year 11, Total wealth is $266,080.\n",
+      " During year 12, Total wealth is $304,542.\n",
+      " During year 13, Total wealth is $345,431.\n",
+      " During year 14, Total wealth is $388,878.\n",
+      " During year 15, Total wealth is $439,025.\n",
+      " During year 16, Total wealth is $492,294.\n",
+      " During year 17, Total wealth is $548,853.\n",
+      " During year 18, Total wealth is $608,878.\n",
+      " During year 19, Total wealth is $672,557.\n",
+      " During year 20, Total wealth is $745,168.\n",
+      " During year 21, Total wealth is $822,190.\n",
+      " During year 22, Total wealth is $903,859.\n",
+      " During year 23, Total wealth is $990,422.\n",
+      " During year 24, Total wealth is $1,082,140.\n",
+      " During year 25, Total wealth is $1,185,745.\n",
+      " During year 26, Total wealth is $1,295,520.\n",
+      " During year 27, Total wealth is $1,411,793.\n",
+      " During year 28, Total wealth is $1,534,910.\n"
+     ]
+    }
+   ],
+   "source": [
+    "prior_wealth = 0\n",
+    "wealth = 0\n",
+    "year = 0\n",
+    "\n",
+    "#using while loop, to stop function when the resired cash collected\n",
+    "while wealth < data.desired_cash:\n",
+    "    year = year + 1\n",
+    "    wealth = wealth_at_year(data, year, prior_wealth)\n",
+    "    print(f' During year {year}, Total wealth is ${wealth:,.0f}.')\n",
+    "    \n",
+    "    prior_wealth = wealth\n",
+    "    \n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 87,
+   "id": "dfbe76e4-e393-4c82-b344-cbd3c969f68b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      " It will take 28 years to retire.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "28"
+      ]
+     },
+     "execution_count": 87,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# lets make a function of it \n",
+    "def years_to_retirement(data):\n",
+    "\n",
+    "    prior_wealth = 0\n",
+    "    wealth = 0\n",
+    "    year = 0\n",
+    "\n",
+    "    #using while loop, to stop function when the resired cash collected\n",
+    "    # Also counter one of withdrawal\n",
+    "    while (wealth - data.one_of_withdrawal) < (data.desired_cash):\n",
+    "        year = year + 1\n",
+    "        wealth = wealth_at_year(data, year, prior_wealth)\n",
+    "        prior_wealth = wealth\n",
+    "        \n",
+    "    print(f' It will take {year} years to retire.')\n",
+    "    return year    \n",
+    "\n",
+    "years_to_retirement(data)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 88,
+   "id": "607e9a94-8b65-46ae-b2a7-f78c77077d9f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      " It will take 28 years to retire.\n"
+     ]
+    }
+   ],
+   "source": [
+    "ytr = years_to_retirement(data)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 89,
+   "id": "180602d5-58b3-4f1e-8119-acc05c549a3a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      " It will take 29 years to retire.\n"
+     ]
+    }
+   ],
+   "source": [
+    "# we can change inputs variable here as well\n",
+    "ytr = years_to_retirement(ModelInputs(one_of_withdrawal=100000))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 90,
+   "id": "cd6473f9-0d79-4a5a-b155-8595c40283d6",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "29"
+      ]
+     },
+     "execution_count": 90,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ytr"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "10cc2fef-505e-4a52-9dac-759159e0f454",
+   "metadata": {},
+   "source": [
+    "### Output"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 91,
+   "id": "8cddaa34-4123-4ec8-817b-864f83c27c50",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      " It will take 22 years to retire.\n"
+     ]
+    }
+   ],
+   "source": [
+    "# we can change inputs variable here as well\n",
+    "ytr = years_to_retirement(ModelInputs(inflation_rate_yearly=0.07))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e3fabcd8-617c-4aa3-8079-9339758bae27",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "50ab58d3-b652-4e53-8565-4e5ea4ede246",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "5950ad29-5d65-4bd4-85bc-612b5484c6dd",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "id": "08ac8c3e-8ace-475a-9431-397b4815475d",
+   "metadata": {
+    "tags": []
+   },
+   "source": [
+    "## Notes\n",
+    "![image.png](attachment:9de54342-e239-4607-8757-d1ae68512399.png)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "2c3fd414-39db-47b5-9baf-17ffeea0e45a",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
